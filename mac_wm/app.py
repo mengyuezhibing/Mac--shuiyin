@@ -379,7 +379,7 @@ def main():
 
     build_ui().queue().launch(server_name="127.0.0.1", server_port=7860,
                               show_error=True, inbrowser=True,
-                              css=".container{max-width:1080px;margin:auto}")
+                              css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}")
 
 
 if __name__ == "__main__":

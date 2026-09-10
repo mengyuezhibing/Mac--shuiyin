@@ -57,7 +57,16 @@ PLIST
 cat > "$APP_NAME/Contents/MacOS/MacWatermarkRemover" <<'LAUNCH'
 #!/bin/bash
 # App 启动器：定位项目根目录 -> 启动原生窗口（pywebview）
-APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"   # .app 所在目录即项目根
+# 解析符号链接后定位项目根（支持 /Applications 下的 .app 别名）
+SRC="$0"
+while [ -L "$SRC" ]; do
+  LINK=$(readlink "$SRC")
+  case "$LINK" in
+    /*) SRC="$LINK" ;;
+    *)  SRC="$(cd "$(dirname "$SRC")" && pwd)/$LINK" ;;
+  esac
+done
+APP_DIR="$(cd "$(dirname "$SRC")/../../.." && pwd)"   # .app 所在目录即项目根
 LOG="$APP_DIR/app.log"
 
 cd "$APP_DIR" || exit 1

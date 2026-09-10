@@ -24,7 +24,7 @@ def _start_server():
     build_ui().queue(max_size=64).launch(
         server_name="127.0.0.1", server_port=PORT,
         show_error=True, inbrowser=False, prevent_thread_lock=True,
-        css=".container{max-width:1080px;margin:auto}")
+        css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}")
 
 
 def _wait_server(timeout: float = 60.0) -> bool:
