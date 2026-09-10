@@ -18,6 +18,26 @@ from .mask_utils import overlay_preview
 
 DEFAULT_OUT_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 
+# 注入前端脚本：隐藏 Gradio 设置入口（齿轮）等英文残留
+HIDE_SETTINGS_HEAD = """<script>
+(function(){
+  function hide(){
+    var els = document.querySelectorAll('[aria-label]');
+    for (var i=0;i<els.length;i++){
+      var l = (els[i].getAttribute('aria-label')||'').toLowerCase();
+      if (l === 'settings' || l === '设置'){
+        var b = els[i].closest ? els[i].closest('button') : null;
+        (b || els[i]).style.setProperty('display','none','important');
+      }
+    }
+  }
+  function run(){ hide(); }
+  try { new MutationObserver(run).observe(document.documentElement,{childList:true,subtree:true}); } catch(e){}
+  setInterval(run, 800);
+  if (document.readyState !== 'loading'){ run(); } else { document.addEventListener('DOMContentLoaded', run); }
+})();
+</script>"""
+
 
 def _editor_to_mask(editor_value, size: tuple[int, int]) -> Image.Image | None:
     """从 Gradio ImageEditor 输出提取涂抹层为 mask。"""
@@ -379,7 +399,8 @@ def main():
 
     build_ui().queue().launch(server_name="127.0.0.1", server_port=7860,
                               show_error=True, inbrowser=True,
-                              css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}")
+                              css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}",
+                              run_history=False, head=HIDE_SETTINGS_HEAD)
 
 
 if __name__ == "__main__":

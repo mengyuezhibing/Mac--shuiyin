@@ -3,7 +3,7 @@
 
 - 双击 .app 打开独立原生窗口，不再弹出浏览器
 - 关闭窗口即退出应用
-- 顶部菜单栏已汉化为中文（pyobjc 重建 NSMenu）
+- macOS 菜单栏/对话框通过 pywebview 官方 localization 汉化为中文
 """
 
 import os
@@ -18,13 +18,54 @@ os.environ.setdefault("_NSApplicationName", "Mac 水印去除")
 PORT = 7860
 URL = f"http://127.0.0.1:{PORT}"
 
+# pywebview 菜单/对话框中文映射（键见 webview/localization.py）
+_WEBVIEW_ZH = {
+    "global.quitConfirmation": "确定要退出吗？",
+    "global.ok": "确定",
+    "global.quit": "退出",
+    "global.cancel": "取消",
+    "global.saveFile": "保存文件",
+    "cocoa.menu.about": "关于",
+    "cocoa.menu.services": "服务",
+    "cocoa.menu.view": "显示",
+    "cocoa.menu.edit": "编辑",
+    "cocoa.menu.hide": "隐藏",
+    "cocoa.menu.hideOthers": "隐藏其他",
+    "cocoa.menu.showAll": "全部显示",
+    "cocoa.menu.quit": "退出",
+    "cocoa.menu.fullscreen": "进入全屏",
+    "cocoa.menu.cut": "剪切",
+    "cocoa.menu.copy": "拷贝",
+    "cocoa.menu.paste": "粘贴",
+    "cocoa.menu.selectAll": "全选",
+}
+
+
+def _localize_webview():
+    """覆盖 pywebview 默认英文菜单文本为中文。"""
+    try:
+        from webview.localization import original_localization
+        original_localization.update(_WEBVIEW_ZH)
+    except Exception as e:
+        print("菜单汉化(localization)失败:", e)
+
+
+def _set_process_name():
+    """设置进程名，使菜单栏 App 名称显示为中文。"""
+    try:
+        from Foundation import NSProcessInfo
+        NSProcessInfo.processInfo().setProcessName_("Mac 水印去除")
+    except Exception as e:
+        print("进程名设置失败:", e)
+
 
 def _start_server():
-    from mac_wm.app import build_ui
+    from mac_wm.app import build_ui, HIDE_SETTINGS_HEAD
     build_ui().queue(max_size=64).launch(
         server_name="127.0.0.1", server_port=PORT,
         show_error=True, inbrowser=False, prevent_thread_lock=True,
-        css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}")
+        css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}",
+        run_history=False, head=HIDE_SETTINGS_HEAD)
 
 
 def _wait_server(timeout: float = 60.0) -> bool:
@@ -38,80 +79,6 @@ def _wait_server(timeout: float = 60.0) -> bool:
         except Exception:
             time.sleep(0.4)
     return False
-
-
-def setup_mac_menu():
-    """用 pyobjc 将 macOS 菜单栏汉化为中文，并保留编辑/窗口快捷键。
-
-    pywebview 的 func 在辅助线程调用，AppKit 修改必须回到主线程执行。
-    """
-    try:
-        import AppKit
-        import Foundation
-        from AppKit import (NSApp, NSMenu, NSMenuItem,
-                            NSCommandKeyMask, NSShiftKeyMask)
-    except Exception as e:
-        print("菜单汉化跳过(无法导入AppKit):", e)
-        return
-
-    if NSApp() is None:
-        return
-
-    def add_submenu(main, title, items):
-        sub = NSMenu.alloc().initWithTitle_(title)
-        for it in items:
-            if it is None:
-                sub.addItem_(NSMenuItem.separatorItem())
-                continue
-            t, action, key, shift = it
-            mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                t, action, key)
-            if key:
-                mask = NSCommandKeyMask
-                if shift:
-                    mask |= NSShiftKeyMask
-                mi.setKeyEquivalentModifierMask_(mask)
-            sub.addItem_(mi)
-        item = NSMenuItem.alloc().init()
-        item.setSubmenu_(sub)
-        main.addItem_(item)
-
-    def build():
-        try:
-            app = NSApp()
-            app.setApplicationName_("Mac 水印去除")
-            main = NSMenu.alloc().init()
-            # 应用菜单
-            add_submenu(main, "Mac 水印去除", [
-                ("关于 Mac 水印去除", "orderFrontStandardAboutPanel:", "", False),
-                None,
-                ("退出 Mac 水印去除", "terminate:", "q", False),
-            ])
-            # 编辑菜单（保留光标编辑快捷键）
-            add_submenu(main, "编辑", [
-                ("撤销", "undo:", "z", False),
-                ("重做", "redo:", "z", True),
-                None,
-                ("剪切", "cut:", "x", False),
-                ("拷贝", "copy:", "c", False),
-                ("粘贴", "paste:", "v", False),
-                ("删除", "delete:", "", False),
-                ("全选", "selectAll:", "a", False),
-            ])
-            # 窗口菜单
-            add_submenu(main, "窗口", [
-                ("最小化", "performMiniature:", "m", False),
-                ("缩放", "performZoom:", "", False),
-                ("关闭窗口", "performClose:", "w", False),
-                None,
-                ("全部置于最前", "arrangeInFront:", "", False),
-            ])
-            app.setMainMenu_(main)
-        except Exception as e:
-            print("菜单构建失败:", e)
-
-    # 调度到主线程执行 AppKit 修改
-    Foundation.NSOperationQueue.mainQueue().addOperationWithBlock_(build)
 
 
 def main():
@@ -131,11 +98,15 @@ def main():
         browser_main()
         return
 
+    # 菜单/对话框中文 + 进程名中文（须在创建窗口前设置）
+    _localize_webview()
+    _set_process_name()
+
     _wait_server()
 
     webview.create_window("Mac 水印去除", URL, width=1180, height=860,
                           min_size=(900, 640))
-    webview.start(func=setup_mac_menu, gui="cocoa")
+    webview.start(_set_process_name, gui="cocoa")
     os._exit(0)
 
 
