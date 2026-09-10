@@ -403,10 +403,6 @@ def build_ui() -> gr.Blocks:
                     "python cli.py video -i 输入.mp4 -b 1180,60,1860,130 -o 输出.mp4\n"
                     "```")
 
-            # ---- 退出 ----
-            with gr.Tab("⏻ 退出"):
-                gr.Button("退出应用", variant="stop").click(
-                    lambda: os._exit(0))
     return ui
 
 
