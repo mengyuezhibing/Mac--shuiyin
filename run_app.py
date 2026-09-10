@@ -60,12 +60,12 @@ def _set_process_name():
 
 
 def _start_server():
-    from mac_wm.app import build_ui, HIDE_SETTINGS_HEAD
+    from mac_wm.app import build_ui, TRANSLATE_HEAD
     build_ui().queue(max_size=64).launch(
         server_name="127.0.0.1", server_port=PORT,
         show_error=True, inbrowser=False, prevent_thread_lock=True,
         css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}",
-        run_history=False, head=HIDE_SETTINGS_HEAD)
+        run_history=False, head=TRANSLATE_HEAD)
 
 
 def _wait_server(timeout: float = 60.0) -> bool:

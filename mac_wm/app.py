@@ -18,22 +18,49 @@ from .mask_utils import overlay_preview
 
 DEFAULT_OUT_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 
-# 注入前端脚本：隐藏 Gradio 设置入口（齿轮）等英文残留
-HIDE_SETTINGS_HEAD = """<script>
+# 注入前端脚本：汉化 Gradio 设置面板中残留的英文文案
+TRANSLATE_HEAD = r"""<script>
 (function(){
-  function hide(){
-    var els = document.querySelectorAll('[aria-label]');
-    for (var i=0;i<els.length;i++){
-      var l = (els[i].getAttribute('aria-label')||'').toLowerCase();
-      if (l === 'settings' || l === '设置'){
-        var b = els[i].closest ? els[i].closest('button') : null;
-        (b || els[i]).style.setProperty('display','none','important');
+  var MAP = {
+    'Light': '浅色',
+    'Dark': '深色',
+    'System': '跟随系统',
+    'Screen Studio': '屏幕录制',
+    'Include automatic zoom in/out': '包含自动放大/缩小',
+    'Include automatic video trimming': '包含自动视频裁剪',
+    'Start Recording': '开始录制',
+    'Stop Recording': '停止录制',
+    'View run history': '查看运行历史',
+    'Progressive Web App is not enabled for this app. To enable it, start your Gradio app with launch(pwa=True).': '本应用未启用渐进式 Web 应用（PWA）。如需启用，请使用 launch(pwa=True) 启动应用。',
+    'Screen Studio allows you to record your screen and generates a video of your app with automatically adding zoom in and zoom out effects as well as trimming the video to remove the prediction time.': '屏幕录制可记录你的屏幕，并自动为应用视频添加放大/缩小效果，同时裁剪掉推理等待时间。',
+    'Start recording by clicking the Start Recording button below and then sharing the current browser tab of your Gradio demo. Use your app as you would normally to generate a prediction.': '点击下方「开始录制」按钮开始录制，然后共享当前浏览器标签页，像平时一样使用应用即可生成结果。',
+    'Stop recording by clicking the Stop Recording button in the footer of the demo.': '点击底部的「停止录制」按钮即可停止录制。'
+  };
+  function repl(s){
+    var t = s.trim();
+    if (!t) return s;
+    if (MAP[t] !== undefined) return s.replace(t, MAP[t]);
+    var m = t.match(/^Run History\s*\((\d+)\)$/);
+    if (m) return s.replace(t, '运行历史 (' + m[1] + ')');
+    return s;
+  }
+  function walk(root){
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = w.nextNode())){
+      var v = n.nodeValue;
+      if (v && /[A-Za-z]/.test(v)){
+        var nv = repl(v);
+        if (nv !== v) n.nodeValue = nv;
       }
     }
+    var els = root.querySelectorAll ? root.querySelectorAll('*') : [];
+    for (var i=0;i<els.length;i++){
+      if (els[i].shadowRoot) walk(els[i].shadowRoot);
+    }
   }
-  function run(){ hide(); }
-  try { new MutationObserver(run).observe(document.documentElement,{childList:true,subtree:true}); } catch(e){}
-  setInterval(run, 800);
+  function run(){ try { walk(document.body); } catch(e){} }
+  setInterval(run, 700);
   if (document.readyState !== 'loading'){ run(); } else { document.addEventListener('DOMContentLoaded', run); }
 })();
 </script>"""
@@ -378,7 +405,6 @@ def build_ui() -> gr.Blocks:
 
             # ---- 退出 ----
             with gr.Tab("⏻ 退出"):
-                gr.Markdown("点击下方按钮将完全退出本应用。")
                 gr.Button("退出应用", variant="stop").click(
                     lambda: os._exit(0))
     return ui
@@ -400,7 +426,7 @@ def main():
     build_ui().queue().launch(server_name="127.0.0.1", server_port=7860,
                               show_error=True, inbrowser=True,
                               css=".container{max-width:1080px;margin:auto} .footer{display:none !important} #footer{display:none !important}",
-                              run_history=False, head=HIDE_SETTINGS_HEAD)
+                              run_history=False, head=TRANSLATE_HEAD)
 
 
 if __name__ == "__main__":
